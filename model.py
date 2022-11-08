@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from torch.nn.modules.activation import ReLU
-
+import clip
 
 
 def get_prompt_list(type):
@@ -61,3 +61,72 @@ def forward_multihead_attention(inp, mod, atten_mask = None):
 
 	return out, attn_weights
 
+class Clipbase(nn.Module):
+
+	def __init__(self, reduce_dim, prompt_type, device='cpu'):
+		super().__init__()
+		self.prompt_list = get_prompt_list(prompt_type)
+
+		version = "ViT-B/32"
+		self.clip_model, _ = clip.load(version,device = device, jit='False')
+		self.visual_clip = self.clip_model.visual
+
+		for param in self.clip_model.parameters():
+			param.requires_grad_(False)
+
+		self.film_mul = nn.Linear(512, reduce_dim)
+		self.film_add = nn.Linear(512, reduce_dim)
+
+
+	def visual_forward(self, input, extract_layers=()):
+		
+		with torch.no_grad():
+
+			inp_shape = input.shape[2:]
+			x = self.visual_clip.conv1(input)
+
+			# shape = [bs, channel, grid ** 2]
+			x = x.reshape(x.shape[0],x.shape[1],-1)
+			x = x.permute(0,2,1)
+
+			# shape = [*, grid ** 2 + 1, channel]
+			cls_emb = self.visual_clip.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device)
+			x = torch.cat([cls_emb, x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+
+			assert x.shape[1]==50, f" Shape 1 of input should be 50, got: {x}"
+
+			standard_n_tokens = 50
+			x = x + self.visual_clip.positional_embedding.to(x.dtype)
+
+			x = self.visual_clip.ln_pre(x)
+			# [Token,BS,EMD]
+			x = x.permute(1,0,2)
+			activations = []
+
+			for i, block in enumerate(self.visual_clip.transformer.resblocks):
+				
+				x, _ = forward_multihead_attention(x,block)
+
+				if i in extract_layers:
+					activations += [x]
+
+			if self.visual_clip.proj:
+				x = torch.matmul(x,self.visual_clip.proj)
+
+			x = x.permute(1,0,2)
+			x = self.visual_clip.ln_post(x[:,0,:])
+
+			return x, activations
+
+	def get_conditional_vec(self, conditional, batch_size):
+	
+		# Modify based on what is conditional [string]*batchsize etc.
+		cond = self.compute_conditional(conditional)
+		return cond
+
+	def compute_conditional(self, conditional):
+
+		dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		text_tokens = clip.tokenize(conditional).to(dev)
+		cond = self.clip_model.encode_text(text_tokens)
+		return cond
