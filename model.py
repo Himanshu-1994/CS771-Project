@@ -61,11 +61,12 @@ def forward_multihead_attention(inp, mod, atten_mask = None):
 
 	return out, attn_weights
 
-class Clipbase(nn.Module):
+class ClipBase(nn.Module):
 
 	def __init__(self, reduce_dim, prompt_type, device='cpu'):
 		super().__init__()
 		self.prompt_list = get_prompt_list(prompt_type)
+		self.device = device
 
 		version = "ViT-B/32"
 		self.clip_model, _ = clip.load(version,device = device, jit='False')
@@ -118,7 +119,7 @@ class Clipbase(nn.Module):
 
 			return x, activations
 
-	def get_conditional_vec(self, conditional, batch_size):
+	def get_conditional_vec(self, conditional, batch_size=32):
 	
 		# Modify based on what is conditional [string]*batchsize etc.
 		cond = self.compute_conditional(conditional)
@@ -126,7 +127,53 @@ class Clipbase(nn.Module):
 
 	def compute_conditional(self, conditional):
 
-		dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		text_tokens = clip.tokenize(conditional).to(dev)
+		text_tokens = clip.tokenize(conditional).to(self.device)
 		cond = self.clip_model.encode_text(text_tokens)
 		return cond
+
+class ClipPred(ClipBase):
+	def __init__(self,reduce_dim=128, prompt_type="shuffle+", device="cpu", upsample=False):
+		super.__init__(reduce_dim, prompt_type, device)
+
+		self.n_heads = 4
+		self.extract_layers = (3,6,9)
+		self.cond_layer = 0
+		depth = len(self.extract_layers)
+		self.upsample_proj = nn.Conv2d(reduce_dim, 1, kernel_size=1) if upsample else None
+
+		# Only vit-b/32 supported rightnow
+		self.version = "ViT-B/32"
+		self.token_shape = {'ViT-B/32': (7, 7), 'ViT-B/16': (14, 14)}[self.version]
+
+		trans_conv_ks = {'ViT-B/32': (32, 32), 'ViT-B/16': (16, 16)}[self.version]
+		self.trans_conv = nn.ConvTranspose2d(reduce_dim, 1, trans_conv_ks, stride=trans_conv_ks)
+
+		self.reduces = nn.ModuleList([nn.Linear(768, reduce_dim) for _ in range(depth)])
+		self.blocks = nn.ModuleList([nn.TransformerEncoderLayer(d_model=reduce_dim, nhead=self.n_heads) for _ in range(len(self.extract_layers))])
+
+
+		def forward(self,inp_image, conditional=None):
+			
+			inp_image = inp_image.to(self.device)
+			cond = self.get_cond_vec(conditional)
+			
+			visual_q, _activations = self.visual_forward(inp_image, extract_layers= list(self.extract_layers))
+
+			for i, (activation, block, reduce) in enumerate(zip(_activations, self.blocks, self.reduces)):
+				
+				if a is not None:
+					a = reduce(activation) + a
+				else:
+					a = reduce(activation)
+
+				if i == self.cond_layer:					
+					a = self.film_mul(cond) * a + self.film_add(cond)
+
+				a = block(a)
+		
+		a = a[1:].permute(1, 2, 0) # rm cls token and -> BS, Feats, Tokens
+		size = int(math.sqrt(a.shape[2]))
+		a = a.view(a.shape[0], a.shape[1], size, size)
+		a = self.trans_conv(a)
+		
+		return a
