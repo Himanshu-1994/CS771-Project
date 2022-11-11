@@ -7,9 +7,14 @@ from data import PCDataset
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-dataset = PCDataset('train', image_size = 352, negative_prob = 0.2)
+dataset = PCDataset('miniv', image_size = 352, negative_prob = 0.2)
 loader = DataLoader(dataset, 
-                    batch_size = 32, 
-                    num_workers = 1, 
+                    batch_size = 1, 
+                    num_workers = 0, 
                     shuffle = False, 
                     drop_last = False)
+
+
+for x,y in loader:
+  print(x[0].shape, x[1])
+  break

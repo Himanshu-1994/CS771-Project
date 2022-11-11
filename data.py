@@ -18,14 +18,15 @@ class PCDataset(object):
         self.image_size = image_size
         self.negative_prob = negative_prob
 
-        get_from_repository('PhraseCut', ['PhraseCut.tar'], integrity_check=lambda local_dir: all([
-            isdir(join(local_dir, 'VGPhraseCut_v0')),
-            isdir(join(local_dir, 'VGPhraseCut_v0', 'images')),
-            isfile(join(local_dir, 'VGPhraseCut_v0', 'refer_train.json')),
-            len(os.listdir(join(local_dir, 'VGPhraseCut_v0', 'images'))) in {108250, 108249}
-        ]))
+        #get_from_repository('PhraseCut', ['PhraseCut.tar'], integrity_check=lambda local_dir: all([
+        #    isdir(join(local_dir, 'VGPhraseCut_v0')),
+        #    isdir(join(local_dir, 'VGPhraseCut_v0', 'images')),
+        #    isfile(join(local_dir, 'VGPhraseCut_v0', 'refer_train.json')),
+        #    len(os.listdir(join(local_dir, 'VGPhraseCut_v0', 'images'))) in {108250, 108249}
+        #]))
 
         self.base_path = join(expanduser('~/datasets/PhraseCut/VGPhraseCut_v0/images/'))
+        self.base_path = "VGPhraseCut_v0/images/"
 
         # The following import is from https://github.com/ChenyunWu/PhraseCutDataset.git
         # The repository provides API's to work with the PhraseCut dataset
@@ -51,11 +52,13 @@ class PCDataset(object):
 
         # grouping the dataset by phrases and creating text based prompts
         samples_by_phrase = sorted([(self.refvg_loader.get_img_ref_data(i)['phrases'][j], (i, j)) for i, j in self.sample_ids])
+        #print(samples_by_phrase)
         samples_by_phrase = groupby(samples_by_phrase, key = lambda x: x[0])
         samples_by_phrase = {prompt: [s[1] for s in prompt_sample_ids] for prompt, prompt_sample_ids in samples_by_phrase}
         self.samples_by_phrase = samples_by_phrase
-
+        #print(self.samples_by_phrase)
         self.all_phrases = list(set(self.samples_by_phrase.keys()))
+        #print("len phrases",self.all_phrases)
 
     def __len__(self):
         return len(self.sample_ids)
