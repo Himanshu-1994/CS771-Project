@@ -155,7 +155,7 @@ class ClipPred(ClipBase):
 		def forward(self,inp_image, conditional=None):
 			
 			inp_image = inp_image.to(self.device)
-			cond = self.get_cond_vec(conditional)
+			cond = self.get_conditional_vec(conditional)
 			
 			visual_q, _activations = self.visual_forward(inp_image, extract_layers= list(self.extract_layers))
 

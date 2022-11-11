@@ -14,7 +14,8 @@ loader = DataLoader(dataset,
                     shuffle = False, 
                     drop_last = False)
 
-
+print(len(loader))
 for x,y in loader:
   print(x[0].shape, x[1])
+  print(y[0])
   break

@@ -201,7 +201,7 @@ def main():
                 with autocast_fn():
                     visual_q = None
 
-                    pred, visual_q, _, _  = model(data_x[0].cuda(), cond)
+                    pred = model(data_x[0].cuda(), cond)
 
                     loss = loss_fn(pred, data_y[0].cuda())
 
