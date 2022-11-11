@@ -70,10 +70,9 @@ class PCDataset(object):
         if img.ndim == 2:
             img = np.dstack([img] * 3)
         img = torch.from_numpy(img).permute(2,0,1).unsqueeze(0).float()
-        img = torch.nn.functional.nnf.interpolate(img, (self.image_size, self.image_size), mode='bilinear', align_corners=True)[0]
+        img = torch.nn.functional.interpolate(img, (self.image_size, self.image_size), mode='bilinear', align_corners=True)[0]
         img = self.normalize(img / 255.0)
 
-        # wtf is this?
         from skimage.draw import polygon2mask
         polys_phrase = img_ref_data['gt_Polygons'][j]
         masks = []
@@ -85,7 +84,7 @@ class PCDataset(object):
     
         seg = seg[sly, slx].astype('uint8')
         seg = torch.from_numpy(seg).view(1, 1, *seg.shape)
-        seg = torch.nn.functional.nnf.interpolate(seg, (self.image_size, self.image_size), mode='nearest')[0,0]
+        seg = torch.nn.functional.interpolate(seg, (self.image_size, self.image_size), mode='nearest')[0,0]
 
         return img, seg, phrase
 
