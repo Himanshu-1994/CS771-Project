@@ -22,7 +22,7 @@ from general_utils import TrainingLogger, training_config_from_cli_args, get_att
 
 import data
 
-import models.clipseg as clipseg
+from model import ClipPred
 
 def cosine_warmup_lr(i, warmup=10, max_iter=90):
     """ Cosine LR with Warmup """
@@ -53,7 +53,7 @@ def validate(model, dataset, config):
             data_y = [x.cuda() if isinstance(x, torch.Tensor) else x for x in data_y]
 
             prompts = model.sample_prompts(data_x[1], prompt_list=('a photo of a {}',))
-            pred, visual_q, _, _  = model(data_x[0], prompts, return_features=True)
+            pred  = model(data_x[0], prompts, return_features=True)
 
             if metric_class is not None:
                 metric.add([pred], data_y)
@@ -65,8 +65,8 @@ def validate(model, dataset, config):
 
             i += 1
 
-            if config.val_max_iterations is not None and i > config.val_max_iterations:
-                break
+            #if config.val_max_iterations is not None and i > config.val_max_iterations:
+                #break
 
     if use_metric is None:
         return np.mean(losses), {}, False
@@ -82,7 +82,7 @@ def main(config):
 
     #val_interval is set to null
     #val_interval, best_val_loss, best_val_score = config.val_interval, float('inf'), float('-inf')
-    val_interval, best_val_loss, best_val_score = None, float('inf'), float('-inf')
+    best_val_loss, best_val_score = float('inf'), float('-inf')
 
     #returns model class (ClipDensePredT in default .yaml case)
     #model_cls = get_attribute(config.model)
@@ -92,25 +92,28 @@ def main(config):
 
     #instantiating model using params above and moving to gpu
     #model = model_cls(**model_args).cuda()
-    model = clipseg.ClipPred(reduce_dim=args.reduce_dim,device=device)
+    model = ClipPred(reduce_dim=args.reduce_dim,device=device)
     model.to(device)
 
     #Similar story with the dataset
     #dataset_cls = get_attribute(config.dataset)
     #_, dataset_args, _ = filter_args(config, inspect.signature(dataset_cls).parameters)
 
-    dataset = data.PhraseCut("train", image_size = args.img_size, negative_prob = args.negative_prob)
+    dataset = data.PhraseCut("miniv", image_size = args.img_size, negative_prob = args.negative_prob)
     #dataset = dataset_cls(**dataset_args)
 
     log.info(f'Train dataset {dataset.__class__.__name__} (length: {len(dataset)})')
-
+    
+    val_interval = None
+    
     if val_interval is not None:
-        dataset_val_args = {k[4:]: v for k,v in config.items() if k.startswith('val_') and k != 'val_interval'}
+        #dataset_val_args = {k[4:]: v for k,v in config.items() if k.startswith('val_') and k != 'val_interval'}
         #trying to inject hyperparams in .yaml file into constructor for dataset
-        _, dataset_val_args, _ = filter_args(dataset_val_args, inspect.signature(dataset_cls).parameters)
-        print('val args', {**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
+        #_, dataset_val_args, _ = filter_args(dataset_val_args, inspect.signature(dataset_cls).parameters)
+        #print('val args', {**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
 
-        dataset_val = dataset_cls(**{**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
+        #dataset_val = dataset_cls(**{**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
+        dataset_val = data.PhraseCut("val", image_size = args.img_size)
     
     # optimizer
     opt = torch.optim.AdamW(
@@ -145,6 +148,9 @@ def main(config):
 
     save_only_trainable = True
     data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=args.num_workers)
+
+    train_len = len(data_loader)
+    val_interval = train_len//batch_size
 
     # disable config when hyperparam. opt. to avoid writing logs.
     #tracker_config = config if not config.hyperparameter_optimization else None
@@ -289,9 +295,12 @@ def main(config):
 def argument_parser():
   parser = argparse.ArgumentParser()
 
+  parser.add_argument("--name",default="pc",type=str,help="Name")
+
   parser.add_argument("--batch-size",default=32,type=int,help="Batch Size for Training",dest="batch_size")
   parser.add_argument("--max-iterations",default=20000,type=int,help="Max Iterations",dest="max_iterations")
   parser.add_argument("-ckpt","--checkpoint-iterations",default=1000,type=int,help="Checkpoint",dest="checkpoint_iterations")
+  parser.add_argument("--image-size",default=224,type=int,help="Internal embedding size",dest="image_size")
 
   parser.add_argument("--amp",default=True,type=bool,help="Automatic Mixed Precision")
   parser.add_argument("--mix",default=False,type=bool,help="Image and Text Prompts")
@@ -300,24 +309,17 @@ def argument_parser():
   parser.add_argument("--num_workers",default=4,type=int,help="Number of workers in DataLoader")
   parser.add_argument("--reduce-dim",default=64,type=int,help="Internal embedding size",dest="reduce_dim")
 
-  parser.add_argument(
-      "-lr",
-      "--learning-rate",
-      default=0.1,
-      type=float,
-      metavar="LR",
-      help="initial learning rate",
-      dest="lr",
-  )
+  parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,help="initial learning rate",dest="lr")
 
   parser.add_argument("--model",default="models.clipseg.ClipPred",type=str,help="Model")
+  parser.add_argument("--mask",default="text",type=str,help="mask")
 
-  parser.add_argument("lrs","--lr-scheduler",default="cosine",type=str,help="LR Scheduler",dest="lr_scheduler")
+  parser.add_argument("-lrs","--lr-scheduler",default="cosine",type=str,help="LR Scheduler",dest="lr_scheduler")
   parser.add_argument("--T-max",default=20000,type=int,help="Tmax",dest="T_max")
   parser.add_argument("--eta-min",default=0.0001,type=float,help="Eta Min",dest="eta_min")
   parser.add_argument("--negative-prob",default=0.2,type=float,help="Negative Sampling",dest="negative_prob")
   
-  parser.add_argument("--use-val-metric",default=False,type=bool,help="Validation Metric",dest="use_val_metric")
+  parser.add_argument("--use-val-metric",default=False,type=bool,help="Use Validation Metric",dest="use_val_metric")
   parser.add_argument("--val-metric-class",default=None,type=str,help="Validation Metric",dest="val_metric_class")
 
   parser.add_argument("--momentum", default=0.9, type=float, metavar="M", help="momentum")
