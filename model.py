@@ -127,8 +127,10 @@ class ClipBase(nn.Module):
 		return cond
 
 	def compute_conditional(self, conditional):
-
+		print("conditional = ",conditional)
 		text_tokens = clip.tokenize(conditional).to(self.device)
+		print("tokens",len(text_tokens))
+		print("tokens.shape",text_tokens[0].shape)
 		cond = self.clip_model.encode_text(text_tokens)
 		return cond
 
