@@ -31,15 +31,15 @@ def cosine_warmup_lr(i, warmup=10, max_iter=90):
     else:
         return 0.5 + 0.5*math.cos(math.pi*(((i-warmup)/(max_iter- warmup))))
 
-def validate(model, dataset, config):
+def validate(model, dataset, config,device):
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=False)
 
     metric_class, use_metric = config.val_metric_class, config.use_val_metric
     #loss_fn = get_attribute(config.loss)
-    loss_fn = torch.nn.functional.binary_cross_entropy_with_logits()
+    #loss_fn = F.binary_cross_entropy_with_logits
 
     model.eval()
-    model.cuda()
+    model.to(device)
 
     if metric_class is not None:
         metric = get_attribute(metric_class)()
@@ -49,8 +49,8 @@ def validate(model, dataset, config):
         i, losses = 0, []
         for data_x, data_y in data_loader:
 
-            data_x = [x.cuda() if isinstance(x, torch.Tensor) else x for x in data_x]
-            data_y = [x.cuda() if isinstance(x, torch.Tensor) else x for x in data_y]
+            data_x = [x.to(device) if isinstance(x, torch.Tensor) else x for x in data_x]
+            data_y = [x.to(device) if isinstance(x, torch.Tensor) else x for x in data_y]
 
             prompts = model.sample_prompts(data_x[1], prompt_list=('a photo of a {}',))
             pred  = model(data_x[0], prompts, return_features=True)
@@ -60,7 +60,7 @@ def validate(model, dataset, config):
 
             # pred = model(data_x[0], prompts)
             # loss = loss_fn(pred[0], data_y[0])
-            loss = loss_fn(pred, data_y[0])
+            loss = F.binary_cross_entropy_with_logits(pred, data_y[0])
             losses += [float(loss)]
 
             i += 1
@@ -136,7 +136,7 @@ def main(config):
 
     #loss_fn = get_attribute(config.loss)
 
-    loss_fn = torch.nn.functional.binary_cross_entropy_with_logits()
+    #loss_fn = torch.nn.functional.binary_cross_entropy_with_logits()
 
     #For automatic mixed precision
     if config.amp:
@@ -182,22 +182,22 @@ def main(config):
                         text_cond = model.compute_conditional(prompts)
                         if model.__class__.__name__ == 'CLIPDensePredTMasked':
                             # when mask=='separate'
-                            visual_s_cond, _, _ = model.visual_forward_masked(data_x[2].cuda(), data_x[3].cuda())
+                            visual_s_cond, _, _ = model.visual_forward_masked(data_x[2].to(device), data_x[3].to(device))
                         else:
                             # data_x[2] = visual prompt
-                            visual_s_cond, _, _ = model.visual_forward(data_x[2].cuda())
+                            visual_s_cond, _, _ = model.visual_forward(data_x[2].to(device))
 
                     max_txt = config.mix_text_max if config.mix_text_max is not None else 1
                     batch_size = text_cond.shape[0]
 
                     # sample weights for each element in batch
                     text_weights = torch.distributions.Uniform(config.mix_text_min, max_txt).sample((batch_size,))[:, None]
-                    text_weights = text_weights.cuda()
+                    text_weights = text_weights.to(device)
 
                     if dataset.__class__.__name__ == 'PhraseCut':
                         # give full weight to text where support_image is invalid
                         visual_is_valid = data_x[4] if model.__class__.__name__ == 'CLIPDensePredTMasked' else data_x[3]
-                        text_weights = torch.max(text_weights[:,0], 1 - visual_is_valid.float().cuda()).unsqueeze(1)
+                        text_weights = torch.max(text_weights[:,0], 1 - visual_is_valid.float().to(device)).unsqueeze(1)
 
                     cond = text_cond * text_weights + visual_s_cond * (1 - text_weights)
 
@@ -209,19 +209,19 @@ def main(config):
                         # compute conditional vector using CLIP masking
                         with autocast_fn():
                             assert config.mask == 'separate'
-                            cond, _, _ = model.visual_forward_masked(data_x[1].cuda(), data_x[2].cuda())
+                            cond, _, _ = model.visual_forward_masked(data_x[1].to(device), data_x[2].to(device))
                     else:
                         #conditional vector is just the text prompt passed through text transformer
                         cond = data_x[1]
                         if isinstance(cond, torch.Tensor):
-                            cond = cond.cuda()
+                            cond = cond.to(device)
 
                 with autocast_fn():
                     visual_q = None
 
-                    pred = model(data_x[0].cuda(), cond)
+                    pred = model(data_x[0].to(device), cond)
 
-                    loss = loss_fn(pred, data_y[0].cuda())
+                    loss = F.binary_cross_entropy_with_logits(pred, data_y[0].to(device))
 
                     if torch.isnan(loss) or torch.isinf(loss):
                         # skip if loss is nan
@@ -265,7 +265,7 @@ def main(config):
                 
                 if val_interval is not None and i % val_interval == val_interval - 1:
 
-                    val_loss, val_scores, maximize = validate(model, dataset_val, config)
+                    val_loss, val_scores, maximize = validate(model, dataset_val, config, device)
                     
                     if len(val_scores) > 0:
 
@@ -297,12 +297,12 @@ def argument_parser():
 
   parser.add_argument("--name",default="pc",type=str,help="Name")
 
-  parser.add_argument("--batch-size",default=32,type=int,help="Batch Size for Training",dest="batch_size")
+  parser.add_argument("--batch-size",default=2,type=int,help="Batch Size for Training",dest="batch_size")
   parser.add_argument("--max-iterations",default=20000,type=int,help="Max Iterations",dest="max_iterations")
   parser.add_argument("-ckpt","--checkpoint-iterations",default=1000,type=int,help="Checkpoint",dest="checkpoint_iterations")
-  parser.add_argument("--image-size",default=224,type=int,help="Internal embedding size",dest="image_size")
+  parser.add_argument("--image-size",default=224,type=int,help="Internal embedding size",dest="img_size")
 
-  parser.add_argument("--amp",default=True,type=bool,help="Automatic Mixed Precision")
+  parser.add_argument("--amp",default=False,type=bool,help="Automatic Mixed Precision")
   parser.add_argument("--mix",default=False,type=bool,help="Image and Text Prompts")
 
 
