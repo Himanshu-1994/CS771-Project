@@ -270,3 +270,51 @@ class TrainingLogger(object):
     def __exit__(self, type, value, traceback):
         """ automatically stop processes if used in a context manager """
         pass        
+
+
+def random_crop_slices(origin_size, target_size):
+    """Gets slices of a random crop. """
+    assert origin_size[0] >= target_size[0] and origin_size[1] >= target_size[1], f'actual size: {origin_size}, target size: {target_size}'
+
+    offset_y = torch.randint(0, origin_size[0] - target_size[0] + 1, (1,)).item()  # range: 0 <= value < high
+    offset_x = torch.randint(0, origin_size[1] - target_size[1] + 1, (1,)).item()
+
+    return slice(offset_y, offset_y + target_size[0]), slice(offset_x, offset_x + target_size[1])
+
+
+def find_crop(seg, image_size, iterations=1000, min_frac=None, best_of=None):
+
+    best_crops = []
+    best_crop_not_ok = float('-inf'), None, None
+    min_sum = 0
+
+    seg = seg.astype('bool')
+    
+    if min_frac is not None:
+        #min_sum = seg.sum() * min_frac
+        min_sum = seg.shape[0] * seg.shape[1] * min_frac
+    
+    for _ in range(iterations):
+        sl_y, sl_x = random_crop_slices(seg.shape, image_size)
+        seg_ = seg[sl_y, sl_x]
+        sum_seg_ = seg_.sum()
+
+        if sum_seg_ > min_sum:
+
+            if best_of is None:
+                return sl_y, sl_x, False
+            else:
+                best_crops += [(sum_seg_, sl_y, sl_x)]
+                if len(best_crops) >= best_of:
+                    best_crops.sort(key=lambda x:x[0], reverse=True)
+                    sl_y, sl_x = best_crops[0][1:]
+                    
+                    return sl_y, sl_x, False
+
+        else:
+            if sum_seg_ > best_crop_not_ok[0]:
+                best_crop_not_ok = sum_seg_, sl_y, sl_x
+        
+    else:
+        # return best segmentation found
+        return best_crop_not_ok[1:] + (best_crop_not_ok[0] <= min_sum,) 

@@ -9,7 +9,7 @@ from PIL import Image
 from torchvision import transforms
 import torch
 
-from utils import get_from_repository
+from utils import get_from_repository, random_crop_slices, find_crop
 
 class PhraseCut(object):
     def __init__(self, split, image_size = 224, negative_prob = 0):
@@ -67,7 +67,7 @@ class PhraseCut(object):
         img_ref_data = self.refvg_loader.get_img_ref_data(i)
         phrase = img_ref_data['phrases'][j]
 
-        sly, slx = slice(0, None), slice(0, None)
+        sly, slx, _ = find_crop(seg, (min(img.shape[:2]), min(img.shape[:2])), iterations=50, min_frac=0.05)
 
         img = np.array(Image.open(join(self.base_path, str(img_ref_data['image_id']) + '.jpg')))[sly, slx]
         if img.ndim == 2:
