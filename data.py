@@ -74,7 +74,9 @@ class PhraseCut(object):
             for poly in polys:
                 poly = [p[::-1] for p in poly]
                 masks += [polygon2mask((img_ref_data['height'], img_ref_data['width']), poly)]
+        
         seg = np.stack(masks).max(0)
+        img = np.array(Image.open(join(self.base_path, str(img_ref_data['image_id']) + '.jpg')))[sly, slx]
 
         sly, slx, _ = find_crop(seg, (min(img.shape[:2]), min(img.shape[:2])), iterations=50, min_frac=0.05)
     
@@ -82,7 +84,6 @@ class PhraseCut(object):
         seg = torch.from_numpy(seg).view(1, 1, *seg.shape)
         seg = torch.nn.functional.interpolate(seg, (self.image_size, self.image_size), mode='nearest')[0,0]
 
-        img = np.array(Image.open(join(self.base_path, str(img_ref_data['image_id']) + '.jpg')))[sly, slx]
         if img.ndim == 2:
             img = np.dstack([img] * 3)
         img = torch.from_numpy(img).permute(2,0,1).unsqueeze(0).float()
