@@ -11,8 +11,8 @@ import torch
 
 from utils import get_from_repository
 
-class PCDataset(object):
-    def __init__(self, split, image_size = 400, negative_prob = 0):
+class PhraseCut(object):
+    def __init__(self, split, image_size = 224, negative_prob = 0):
         super().__init__()
 
         self.image_size = image_size

@@ -67,9 +67,10 @@ class ClipBase(nn.Module):
 		super().__init__()
 		self.prompt_list = get_prompt_list(prompt_type)
 		self.device = device
-
+		print("device ",device)
 		version = "ViT-B/32"
-		self.clip_model, _ = clip.load(version,device = device, jit='False')
+		self.clip_model, _ = clip.load(version,device = device,jit='False')
+		print("crossed")
 		self.visual_clip = self.clip_model.visual
 
 		for param in self.clip_model.parameters():
@@ -131,9 +132,16 @@ class ClipBase(nn.Module):
 		cond = self.clip_model.encode_text(text_tokens)
 		return cond
 
+	def sample_prompts(self, words, prompt_list=None):
+
+			prompt_list = prompt_list if prompt_list is not None else self.prompt_list
+			prompt_indices = torch.multinomial(torch.ones(len(prompt_list)), len(words), replacement=True)
+			prompts = [prompt_list[i] for i in prompt_indices]
+			return [promt.format(w) for promt, w in zip(prompts, words)]
+
 class ClipPred(ClipBase):
 	def __init__(self,reduce_dim=128, prompt_type="shuffle+", device="cpu", upsample=False):
-		super.__init__(reduce_dim, prompt_type, device)
+		super().__init__(reduce_dim, prompt_type, device)
 
 		self.n_heads = 4
 		self.extract_layers = (3,6,9)
@@ -151,26 +159,25 @@ class ClipPred(ClipBase):
 		self.reduces = nn.ModuleList([nn.Linear(768, reduce_dim) for _ in range(depth)])
 		self.blocks = nn.ModuleList([nn.TransformerEncoderLayer(d_model=reduce_dim, nhead=self.n_heads) for _ in range(len(self.extract_layers))])
 
-
-		def forward(self,inp_image, conditional=None):
+	def forward(self,inp_image, conditional=None):
 			
-			inp_image = inp_image.to(self.device)
-			cond = self.get_conditional_vec(conditional)
-			
-			visual_q, _activations = self.visual_forward(inp_image, extract_layers= list(self.extract_layers))
-
-			for i, (activation, block, reduce) in enumerate(zip(_activations, self.blocks, self.reduces)):
-				
-				if a is not None:
-					a = reduce(activation) + a
-				else:
-					a = reduce(activation)
-
-				if i == self.cond_layer:					
-					a = self.film_mul(cond) * a + self.film_add(cond)
-
-				a = block(a)
+		inp_image = inp_image.to(self.device)
+		cond = self.get_conditional_vec(conditional)
 		
+		visual_q, _activations = self.visual_forward(inp_image, extract_layers= list(self.extract_layers))
+
+		for i, (activation, block, reduce) in enumerate(zip(_activations, self.blocks, self.reduces)):
+			
+			if a is not None:
+				a = reduce(activation) + a
+			else:
+				a = reduce(activation)
+
+			if i == self.cond_layer:					
+				a = self.film_mul(cond) * a + self.film_add(cond)
+
+			a = block(a)
+	
 		a = a[1:].permute(1, 2, 0) # rm cls token and -> BS, Feats, Tokens
 		size = int(math.sqrt(a.shape[2]))
 		a = a.view(a.shape[0], a.shape[1], size, size)

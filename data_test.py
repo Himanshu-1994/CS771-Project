@@ -9,7 +9,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 dataset = PCDataset('miniv', image_size = 352, negative_prob = 0.2)
 loader = DataLoader(dataset, 
-                    batch_size = 1, 
+                    batch_size = 4, 
                     num_workers = 0, 
                     shuffle = False, 
                     drop_last = False)
