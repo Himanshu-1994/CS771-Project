@@ -53,7 +53,8 @@ def validate(model, dataset, config,device):
             data_y = [x.to(device) if isinstance(x, torch.Tensor) else x for x in data_y]
 
             prompts = model.sample_prompts(data_x[1], prompt_list=('a photo of a {}',))
-            pred  = model(data_x[0], prompts, return_features=True)
+            with autocast():
+                pred  = model(data_x[0], prompts)
 
             if metric_class is not None:
                 metric.add([pred], data_y)
@@ -104,17 +105,6 @@ def main(config):
 
     log.info(f'Train dataset {dataset.__class__.__name__} (length: {len(dataset)})')
     
-    val_interval = None
-    
-    if val_interval is not None:
-        #dataset_val_args = {k[4:]: v for k,v in config.items() if k.startswith('val_') and k != 'val_interval'}
-        #trying to inject hyperparams in .yaml file into constructor for dataset
-        #_, dataset_val_args, _ = filter_args(dataset_val_args, inspect.signature(dataset_cls).parameters)
-        #print('val args', {**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
-
-        #dataset_val = dataset_cls(**{**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
-        dataset_val = data.PhraseCut("val", image_size = args.img_size)
-    
     # optimizer
     opt = torch.optim.AdamW(
                 model.parameters(),
@@ -151,6 +141,16 @@ def main(config):
 
     train_len = len(data_loader)
     val_interval = train_len//batch_size
+
+    #val_interval = None
+    if val_interval is not None:
+        #dataset_val_args = {k[4:]: v for k,v in config.items() if k.startswith('val_') and k != 'val_interval'}
+        #trying to inject hyperparams in .yaml file into constructor for dataset
+        #_, dataset_val_args, _ = filter_args(dataset_val_args, inspect.signature(dataset_cls).parameters)
+        #print('val args', {**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
+
+        #dataset_val = dataset_cls(**{**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
+        dataset_val = data.PhraseCut("miniv", image_size = args.img_size)
 
     # disable config when hyperparam. opt. to avoid writing logs.
     #tracker_config = config if not config.hyperparameter_optimization else None
@@ -258,8 +258,9 @@ def main(config):
                     
                     sys.exit(0)
 
-                    
-                if config.checkpoint_iterations is not None and i in config.checkpoint_iterations:
+                checkpoint_iterations = [i+1 for i in range(20)]*1000
+                if checkpoint_iterations is not None and i in checkpoint_iterations:
+                #if config.checkpoint_iterations is not None and i in config.checkpoint_iterations:
                     logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
 
                 
@@ -302,7 +303,7 @@ def argument_parser():
   parser.add_argument("-ckpt","--checkpoint-iterations",default=1000,type=int,help="Checkpoint",dest="checkpoint_iterations")
   parser.add_argument("--image-size",default=224,type=int,help="Internal embedding size",dest="img_size")
 
-  parser.add_argument("--amp",default=False,type=bool,help="Automatic Mixed Precision")
+  parser.add_argument("--amp",default=True,type=bool,help="Automatic Mixed Precision")
   parser.add_argument("--mix",default=False,type=bool,help="Image and Text Prompts")
 
 
@@ -319,7 +320,7 @@ def argument_parser():
   parser.add_argument("--eta-min",default=0.0001,type=float,help="Eta Min",dest="eta_min")
   parser.add_argument("--negative-prob",default=0.2,type=float,help="Negative Sampling",dest="negative_prob")
   
-  parser.add_argument("--use-val-metric",default=False,type=bool,help="Use Validation Metric",dest="use_val_metric")
+  parser.add_argument("--use-val-metric",default=None,type=bool,help="Use Validation Metric",dest="use_val_metric")
   parser.add_argument("--val-metric-class",default=None,type=str,help="Validation Metric",dest="val_metric_class")
 
   parser.add_argument("--momentum", default=0.9, type=float, metavar="M", help="momentum")
