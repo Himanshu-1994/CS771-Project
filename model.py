@@ -52,7 +52,7 @@ def forward_multihead_attention(inp, mod, atten_mask = None):
 
 	# (bs*heads,tokens,tokens) * (bs*heads,tokens,dim) -> (bs*heads,tokens,dim)
 	attn_out = torch.bmm(attn_weights, v)
-	attn_out = attn_out.transpose(0,1).contiguous.view(-1,batch_size,num_heads*dim)
+	attn_out = attn_out.transpose(0,1).contiguous().view(-1,batch_size,num_heads*dim)
 
 	interm = inp + mod.attn.out_proj(attn_out)
 	out = interm + mod.mlp(mod.ln_2(interm))
@@ -69,7 +69,7 @@ class ClipBase(nn.Module):
 		self.device = device
 		print("device ",device)
 		version = "ViT-B/32"
-		self.clip_model, _ = clip.load(version,device = device,jit='False')
+		self.clip_model, _ = clip.load(version,device = device,jit= False)
 		print("crossed")
 		self.visual_clip = self.clip_model.visual
 
@@ -104,7 +104,7 @@ class ClipBase(nn.Module):
 			# [Token,BS,EMD]
 			x = x.permute(1,0,2)
 			activations = []
-
+			#print(self.visual_clip)
 			for i, block in enumerate(self.visual_clip.transformer.resblocks):
 				
 				x, _ = forward_multihead_attention(x,block)
@@ -112,11 +112,12 @@ class ClipBase(nn.Module):
 				if i in extract_layers:
 					activations += [x]
 
-			if self.visual_clip.proj:
-				x = torch.matmul(x,self.visual_clip.proj)
-
 			x = x.permute(1,0,2)
+			
 			x = self.visual_clip.ln_post(x[:,0,:])
+
+			if self.visual_clip.proj is not None:
+				x = torch.matmul(x,self.visual_clip.proj)
 
 			return x, activations
 
@@ -127,10 +128,10 @@ class ClipBase(nn.Module):
 		return cond
 
 	def compute_conditional(self, conditional):
-		print("conditional = ",conditional)
+		#print("conditional = ",conditional)
 		text_tokens = clip.tokenize(conditional).to(self.device)
-		print("tokens",len(text_tokens))
-		print("tokens.shape",text_tokens[0].shape)
+		#print("tokens",len(text_tokens))
+		#print("tokens.shape",text_tokens[0].shape)
 		cond = self.clip_model.encode_text(text_tokens)
 		return cond
 
@@ -168,6 +169,7 @@ class ClipPred(ClipBase):
 		
 		visual_q, _activations = self.visual_forward(inp_image, extract_layers= list(self.extract_layers))
 
+		a = None
 		for i, (activation, block, reduce) in enumerate(zip(_activations, self.blocks, self.reduces)):
 			
 			if a is not None:
