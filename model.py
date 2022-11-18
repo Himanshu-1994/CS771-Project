@@ -79,6 +79,11 @@ class ClipBase(nn.Module):
 		self.film_mul = nn.Linear(512, reduce_dim)
 		self.film_add = nn.Linear(512, reduce_dim)
 
+	def rescaled_pos_emb(self, new_size):
+		assert len(new_size) == 2
+		a = self.model.positional_embedding[1:].T.view(1, 768, *self.token_shape)
+		b = nnf.interpolate(a, new_size, mode='bicubic', align_corners=False).squeeze(0).view(768, new_size[0]*new_size[1]).T
+		return torch.cat([self.model.positional_embedding[:1], b])
 
 	def visual_forward(self, input, extract_layers=()):
 		
@@ -98,8 +103,14 @@ class ClipBase(nn.Module):
 			assert x.shape[1]==50, f" Shape 1 of input should be 50, got: {x}"
 
 			standard_n_tokens = 50
-			x = x + self.visual_clip.positional_embedding.to(x.dtype)
+			# x = x + self.visual_clip.positional_embedding.to(x.dtype)
 
+			if x.shape[1] != standard_n_tokens:
+                		new_shape = int(math.sqrt(x.shape[1]-1))
+                		x = x + self.rescaled_pos_emb((new_shape, new_shape)).to(x.dtype)[None,:,:]
+            		else:
+                		x = x + self.model.positional_embedding.to(x.dtype)
+			
 			x = self.visual_clip.ln_pre(x)
 			# [Token,BS,EMD]
 			x = x.permute(1,0,2)
