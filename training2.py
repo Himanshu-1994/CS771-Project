@@ -100,7 +100,7 @@ def main(config):
     #dataset_cls = get_attribute(config.dataset)
     #_, dataset_args, _ = filter_args(config, inspect.signature(dataset_cls).parameters)
 
-    dataset = data.PhraseCut("miniv", image_size = args.img_size, negative_prob = args.negative_prob)
+    dataset = data.PhraseCut("train", image_size = args.img_size, negative_prob = args.negative_prob)
     #dataset = dataset_cls(**dataset_args)
 
     log.info(f'Train dataset {dataset.__class__.__name__} (length: {len(dataset)})')
@@ -109,9 +109,8 @@ def main(config):
     opt = torch.optim.AdamW(
                 model.parameters(),
                 config.lr,
-                weight_decay=args.weight_decay,
             )
-
+                #weight_decay=args.weight_decay,
 
     if config.lr_scheduler == 'cosine':
         assert config.T_max is not None and config.eta_min is not None
@@ -150,7 +149,7 @@ def main(config):
         #print('val args', {**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
 
         #dataset_val = dataset_cls(**{**dataset_args, **{'split': 'val', 'aug': 0}, **dataset_val_args})
-        dataset_val = data.PhraseCut("miniv", image_size = args.img_size)
+        dataset_val = data.PhraseCut("val", image_size = args.img_size)
 
     # disable config when hyperparam. opt. to avoid writing logs.
     #tracker_config = config if not config.hyperparameter_optimization else None
@@ -298,10 +297,10 @@ def argument_parser():
 
   parser.add_argument("--name",default="pc",type=str,help="Name")
 
-  parser.add_argument("--batch-size",default=2,type=int,help="Batch Size for Training",dest="batch_size")
+  parser.add_argument("--batch-size",default=64,type=int,help="Batch Size for Training",dest="batch_size")
   parser.add_argument("--max-iterations",default=20000,type=int,help="Max Iterations",dest="max_iterations")
   parser.add_argument("-ckpt","--checkpoint-iterations",default=1000,type=int,help="Checkpoint",dest="checkpoint_iterations")
-  parser.add_argument("--image-size",default=224,type=int,help="Internal embedding size",dest="img_size")
+  parser.add_argument("--image-size",default=352,type=int,help="Internal embedding size",dest="img_size")
 
   parser.add_argument("--amp",default=True,type=bool,help="Automatic Mixed Precision")
   parser.add_argument("--mix",default=False,type=bool,help="Image and Text Prompts")

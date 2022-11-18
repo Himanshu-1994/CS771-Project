@@ -66,7 +66,7 @@ individual_configurations:
 
 # important ones
 
-- {name: text32-uni, version: 'ViT-B/32', reduce_dim: 64, with_visual: False, negative_prob: 0.2, mix: False}
+- {name: text32-uni, version: 'ViT-B/32', reduce_dim: 64, with_visual: False, negative_prob: 0.2, mix: False, mix_text_max: 0}
 
 - {name: rd64-uni, version: 'ViT-B/16', reduce_dim: 64, with_visual: True, negative_prob: 0.2, mix: True, mix_text_max: 0.5}
 
