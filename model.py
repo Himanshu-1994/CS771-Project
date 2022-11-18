@@ -109,7 +109,7 @@ class ClipBase(nn.Module):
 				new_shape = int(math.sqrt(x.shape[1]-1))
 				x = x + self.rescaled_pos_emb((new_shape, new_shape)).to(x.dtype)[None,:,:]
 			else:
-				x = x + self.model.positional_embedding.to(x.dtype)
+				x = x + self.visual_clip.positional_embedding.to(x.dtype)
 
 			x = self.visual_clip.ln_pre(x)
 			# [Token,BS,EMD]
