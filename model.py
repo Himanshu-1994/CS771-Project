@@ -100,7 +100,7 @@ class ClipBase(nn.Module):
 			cls_emb = self.visual_clip.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device)
 			x = torch.cat([cls_emb, x], dim=1)  # shape = [*, grid ** 2 + 1, width]
 
-			assert x.shape[1]==50, f" Shape 1 of input should be 50, got: {x}"
+			#assert x.shape[1]==50, f" Shape 1 of input should be 50, got: {x}"
 
 			standard_n_tokens = 50
 			# x = x + self.visual_clip.positional_embedding.to(x.dtype)
