@@ -3,7 +3,9 @@ import yaml
 import sys
 import torch
 import json
+import inspect
 from os.path import join
+from os.path import join, realpath, isfile
 
 class Logger(object):
     def __getattr__(self, k):
@@ -111,3 +113,68 @@ def filter_args(input_args, default_args):
     unused_args = {k: v for k, v in input_args.items() if k not in default_args}
 
     return AttributeDict(updated_args), AttributeDict(used_args), AttributeDict(unused_args)
+
+
+"""New util functions added"""
+
+def load_model(checkpoint_id, weights_file=None, strict=True, model_args='from_config', with_config=False):
+
+    config = json.load(open(join('logs', checkpoint_id, 'config.json')))
+
+    if model_args != 'from_config' and type(model_args) != dict:
+        raise ValueError('model_args must either be "from_config" or a dictionary of values')
+
+    model_cls = get_attribute(config['model'])
+
+    # load model
+    if model_args == 'from_config':
+        _, model_args, _ = filter_args(config, inspect.signature(model_cls).parameters)
+
+    model = model_cls(**model_args)
+
+    if weights_file is None:
+        weights_file = realpath(join('logs', checkpoint_id, 'weights.pth'))
+    else:
+        weights_file = realpath(join('logs', checkpoint_id, weights_file))
+
+    if isfile(weights_file):
+        weights = torch.load(weights_file)
+        for _, w in weights.items():
+            assert not torch.any(torch.isnan(w)), 'weights contain NaNs'
+        model.load_state_dict(weights, strict=strict)
+    else:
+        raise FileNotFoundError(f'model checkpoint {weights_file} was not found')
+
+    if with_config:
+        return model, config
+    
+    return model
+
+def score_config_from_cli_args():
+    experiment_name = sys.argv[1]
+    #experiment_id = int(sys.argv[2])
+
+    train_config = AttributeDict(json.load(open(f'logs/{experiment_name}/config.json')))
+
+    #yaml_config = yaml.load(open(f'experiments/{experiment_name}'), Loader=yaml.SafeLoader)
+
+    # config = yaml_config['test_configuration_common']
+
+    # if type(yaml_config['test_configuration']) == list:
+    #     test_id = int(sys.argv[3])
+    #     config = {**config, **yaml_config['test_configuration'][test_id]}
+    # else:
+    #     config = {**config, **yaml_config['test_configuration']}
+
+    # if 'test_configuration' in yaml_config['individual_configurations'][experiment_id]:
+    #     config = {**config, **yaml_config['individual_configurations'][experiment_id]['test_configuration']}
+
+    train_config = {"normalize": True, "image_size": train_config.img_size, "batch_size": train_config.batch_size, "name": train_config.name, "metric": "metrics.FixedIntervalMetrics", "split":"test", "mask":"text", "label_support": True, "sigmoid": True}
+
+    #train_config = AttributeDict(train_config)
+
+    train_checkpoint_id = train_config["name"]
+
+    #config = AttributeDict(config)
+
+    return train_config, train_checkpoint_id
