@@ -18,6 +18,8 @@ from metrics import FixedIntervalMetrics
 
 from general_utils import load_model, log, score_config_from_cli_args, AttributeDict, get_attribute, filter_args
 
+from tqdm import tqdm
+
 def load_model(checkpoint_id, weights_file=None, strict=True, model_args='from_config', with_config=False, ignore_weights=False):
 
     config = json.load(open(join('logs', checkpoint_id, 'config.json')))
@@ -80,7 +82,7 @@ def score(config, train_checkpoint_id, train_config):
                            
 
     model.eval()
-    #model.cuda()
+    model.cuda()
 
     metric_args = dict()
 
@@ -121,11 +123,11 @@ def score(config, train_checkpoint_id, train_config):
     with torch.no_grad():
 
         i, losses = 0, []
-        for i_all, (data_x, data_y) in enumerate(loader):
+        for i_all, (data_x, data_y) in tqdm(enumerate(loader)):
             data_x = [v.cuda(non_blocking=True) if isinstance(v, torch.Tensor) else v for v in data_x]
             data_y = [v.cuda(non_blocking=True) if isinstance(v, torch.Tensor) else v for v in data_y]
 
-            pred, _, _, _  = model(data_x[0], data_x[1])
+            pred = model(data_x[0], data_x[1])
             metric.add([pred + shift], data_y)
 
             i += 1
