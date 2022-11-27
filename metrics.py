@@ -6,6 +6,8 @@ import numpy as np
 import torch
 from torch.nn import functional as nnf
 
+from scipy.integrate import simps
+
 
 class BaseMetric(object):
 
@@ -86,12 +88,14 @@ class FixedIntervalMetrics(BaseMetric):
 
     def add(self, pred, gt):
         
-        pred_batch = pred[0].cpu()
+        #pred_batch = pred[0].cpu()
+        pred_batch = pred[0]
 
         if self.sigmoid:
             pred_batch = torch.sigmoid(pred_batch)
 
-        gt_batch = gt[0].cpu()
+        #gt_batch = gt[0].cpu()
+        gt_batch = gt[0]
         mask_batch = gt[1] if len(gt) > 1 and not self.ignore_mask and gt[1].numel() > 0 else ([None] * len(pred_batch))
         cls_batch = gt[2] if len(gt) > 2 else [None] * len(pred_batch)
 
@@ -189,7 +193,7 @@ class FixedIntervalMetrics(BaseMetric):
         # remove duplicate recall-precision-pairs (and sort by recall value)
         recalls, precisions = zip(*sorted(list(set(zip(recalls, precisions))), key=lambda x: x[0]))
 
-        from scipy.integrate import simps
+        #from scipy.integrate import simps
         ap = simps(precisions, recalls)
 
         # Compute best IoU
