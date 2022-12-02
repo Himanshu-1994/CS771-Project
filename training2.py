@@ -139,7 +139,9 @@ def main(config):
     data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=args.num_workers)
 
     train_len = len(data_loader)
-    val_interval = train_len//batch_size
+    val_interval = train_len
+    
+    checkpoint_iterations = [(i+1)*1000 for i in range(20)]
 
     #val_interval = None
     if val_interval is not None:
@@ -257,7 +259,7 @@ def main(config):
                     
                     sys.exit(0)
 
-                checkpoint_iterations = [i+1 for i in range(20)]*1000
+                #checkpoint_iterations = [i+1 for i in range(20)]*1000
                 if checkpoint_iterations is not None and i in checkpoint_iterations:
                 #if config.checkpoint_iterations is not None and i in config.checkpoint_iterations:
                     logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
