@@ -92,7 +92,14 @@ if __name__ == "__main__":
     """
 
     """
-    Use their fancy method to convert to binary mask (177)
+    Use their fancy method to convert to binary mask (177, 250)
     Right now your metrics are very strict, figure out how to go easy
+    """
+
+    """
+    TODO:
+    1. Figure out Jaccard's internal threshold
+    2. Figure out thresh for classifying as failures
+    3. Use their method to convert to binary mask
     """
     compute_fail_cases()
