@@ -92,7 +92,7 @@ if __name__ == "__main__":
     """
 
     """
-    Use their fancy method to convert to binary mask (177, 250)
+    Use their fancy method to convert to binary mask (Look at 5, 177, 250)
     Right now your metrics are very strict, figure out how to go easy
     """
 
