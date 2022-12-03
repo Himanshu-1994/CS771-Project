@@ -49,6 +49,10 @@ class PhraseCut(object):
                            for i in self.refvg_loader.img_ids 
                            for j in range(len(self.refvg_loader.get_img_ref_data(i)['phrases']))
                            if i not in invalid_img_ids]
+        
+        # print(self.sample_ids[0])
+        # print(self.sample_ids[-1])
+        # print(self.sample_ids[-5])
 
         # grouping the dataset by phrases and creating text based prompts
         samples_by_phrase = sorted([(self.refvg_loader.get_img_ref_data(i)['phrases'][j], (i, j)) for i, j in self.sample_ids])
@@ -112,4 +116,4 @@ class PhraseCut(object):
         seg = seg.unsqueeze(0).float()
         data_x = (img,) + tuple(vis_s)
 
-        return data_x, (seg, torch.zeros(0), i)
+        return data_x, (seg, torch.zeros(0), sample_i)

@@ -82,7 +82,7 @@ def score(config, train_checkpoint_id, train_config):
                            
 
     model.eval()
-    model.cuda()
+    #model.cuda()
 
     metric_args = dict()
 
@@ -124,15 +124,18 @@ def score(config, train_checkpoint_id, train_config):
 
         i, losses = 0, []
         for i_all, (data_x, data_y) in tqdm(enumerate(loader)):
-            data_x = [v.cuda(non_blocking=True) if isinstance(v, torch.Tensor) else v for v in data_x]
-            data_y = [v.cuda(non_blocking=True) if isinstance(v, torch.Tensor) else v for v in data_y]
+            # data_x = [v.cuda(non_blocking=True) if isinstance(v, torch.Tensor) else v for v in data_x]
+            # data_y = [v.cuda(non_blocking=True) if isinstance(v, torch.Tensor) else v for v in data_y]
 
             pred = model(data_x[0], data_x[1])
             metric.add([pred + shift], data_y)
 
             i += 1
             if config.max_iterations and i >= config.max_iterations:
-                break                
+                break
+
+            if i_all >= 3:
+                break             
 
     key_prefix = config['name'] if 'name' in config else 'phrasecut'      
     return {key_prefix: metric.scores()}
