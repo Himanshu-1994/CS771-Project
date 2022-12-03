@@ -17,23 +17,29 @@ Binary Jaccard Index (i,j) = a/(a + b + c) where is the a is the number of (1,1)
 def mIOU(threshold = 0.5):
     return BinaryJaccardIndex(threshold = threshold)
 
-def compute_fail_cases(batch_size = 32, num_workers = 4, thresh = 0.5):
+def compute_fail_cases(batch_size = 32, num_workers = 1, thresh = 0.5):
     dataset = PhraseCut("test", image_size=352)
-    test_loader = DataLoader(dataset, batch_size = batch_size, num_workers = num_workers)
+    test_loader = DataLoader(dataset, batch_size = batch_size, num_workers = num_workers, shuffle = False)
 
     processor = CLIPSegProcessor.from_pretrained("CIDAS/clipseg-rd64-refined")
     model = CLIPSegForImageSegmentation.from_pretrained("CIDAS/clipseg-rd64-refined")
 
-    miou_metric = mIOU()
 
-    count = 1
+    miou_metric_1 = mIOU(threshold = 0.1)
+    miou_metric_2 = mIOU(threshold = 0.2)
+    miou_metric_3 = mIOU(threshold = 0.3)
+    miou_metric_4 = mIOU(threshold = 0.4)
+    miou_metric_5 = mIOU(threshold = 0.5)
+
+    #count = 1
 
     for idx, (img, mask) in tqdm(enumerate(test_loader)):
         imgs = [img[0][idx, :].permute(1,2,0) for idx in range(img[0].shape[0])]
+        current_batch_size = len(imgs)
+        sample_ids = [mask[-1][idx] for idx in range(current_batch_size)]
         prompts = list(img[1])
         masks = [mask[0][idx, :].permute(1,2,0).squeeze(-1) for idx in range(mask[0].shape[0])]
-
-        current_batch_size = len(imgs)
+        
         
         inputs = processor(text=prompts, images=imgs, padding="max_length", return_tensors="pt")
 
@@ -51,11 +57,15 @@ def compute_fail_cases(batch_size = 32, num_workers = 4, thresh = 0.5):
         #print(prompts[0])
 
         for idx in range(current_batch_size):
-            miou = miou_metric(preds[idx][0], masks[idx])
+            miou1 = miou_metric_1(preds[idx][0], masks[idx])
+            miou2 = miou_metric_2(preds[idx][0], masks[idx])
+            miou3 = miou_metric_3(preds[idx][0], masks[idx])
+            miou4 = miou_metric_4(preds[idx][0], masks[idx])
+            miou5 = miou_metric_5(preds[idx][0], masks[idx])
 
-            print(miou)
+            print(miou1, miou2, miou3, miou4, miou5)
 
-            if(miou < thresh):
+            if(miou1 < thresh and miou2 < thresh and miou3 < thresh and miou4 < thresh and miou5 < thresh):
                 fig = plt.figure(figsize = (8,8))
 
                 gs1 = gridspec.GridSpec(1, 3)
@@ -81,10 +91,12 @@ def compute_fail_cases(batch_size = 32, num_workers = 4, thresh = 0.5):
 
                 ax3.text(0.5,-0.1, "Ground Truth", size=12, ha="center", 
                 transform=ax3.transAxes)
-                
-                plt.savefig(f"failure_cases/fail_{count}_{miou}.png", facecolor = 'w', dpi = 300)
 
-                count += 1
+                miou = max(miou1, miou2, miou3, miou4, miou5)
+                
+                plt.savefig(f"failure_cases/fail_{sample_ids[idx]}_{miou}.png", facecolor = 'w', dpi = 300)
+
+                #count += 1
 
 if __name__ == "__main__":
     """
@@ -103,3 +115,18 @@ if __name__ == "__main__":
     3. Use their method to convert to binary mask
     """
     compute_fail_cases()
+
+    # dataset = PhraseCut("test", image_size=352)
+
+    # print(dataset[20][0][0])
+    # print(dataset[20][0][1])
+    # print(dataset[20][1][2])
+
+    # fig = plt.figure(figsize = (8,8))
+
+    # gs1 = gridspec.GridSpec(1, 1)
+
+    # ax1 = plt.subplot(gs1[0])
+    # ax1.imshow(dataset[20][0][0].permute(1,2,0))
+
+    # plt.show()
