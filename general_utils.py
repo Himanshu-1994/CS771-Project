@@ -55,6 +55,9 @@ class TrainingLogger(object):
         os.makedirs('logs/', exist_ok=True)
         os.makedirs(self.base_path, exist_ok=True)
 
+        self.train_log = join(self.base_path,'train.log')
+        self.val_log = join(self.base_path,'val.log')
+
         if config is not None:
             json.dump(config, open(join(self.base_path, 'config.json'), 'w'))
 
@@ -62,6 +65,17 @@ class TrainingLogger(object):
         if i % 100 == 0 and 'loss' in kwargs:
             loss = kwargs['loss']
             print(f'iteration {i}: loss {loss:.4f}')
+            with open(self.train_log,'a') as file:
+              file.write(f'iteration, {i}, loss, {loss:.4f}\n')
+              file.close()
+
+    def iter_val(self, i, val_loss, **kwargs):
+      
+      with open(self.val_log,'a') as file:
+        print(f'iteration {i}: loss {val_loss:.4f}')
+        file.write(f'iteration, {i}, loss, {val_loss:.4f}\n')
+        file.close()
+      
 
     def save_weights(self, only_trainable=False, weight_file='weights.pth'):
         if self.model is None:

@@ -141,7 +141,7 @@ def main(config):
     train_len = len(data_loader)
     val_interval = train_len
     
-    checkpoint_iterations = [(i+1)*1000 for i in range(20)]
+    checkpoint_iterations = [5000,10000,15000,20000]
 
     #val_interval = None
     if val_interval is not None:
@@ -253,16 +253,14 @@ def main(config):
 
                 if i >= max_iterations:
 
-                    if not isfile(join(logger.base_path, 'weights.pth')):
+                    if not isfile(join(logger.base_path, 'weights_final.pth')):
                         # only write if no weights were already written
                         logger.save_weights(only_trainable=save_only_trainable)
                     
                     sys.exit(0)
 
-                #checkpoint_iterations = [i+1 for i in range(20)]*1000
                 if checkpoint_iterations is not None and i in checkpoint_iterations:
-                #if config.checkpoint_iterations is not None and i in config.checkpoint_iterations:
-                    logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
+                  logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
 
                 
                 if val_interval is not None and i % val_interval == val_interval - 1:
@@ -284,12 +282,13 @@ def main(config):
                     else:
                         score_str = ''
                         # if no score is used, fall back to loss
+                        #logger.save_weights(only_trainable=save_only_trainable,weight_file=f'weights_{i}.pth')
                         if val_loss < best_val_loss:
-                            logger.save_weights(only_trainable=save_only_trainable)
+                            logger.save_weights(only_trainable=save_only_trainable,weight_file=f'weights_{i}.pth')
                             best_val_loss = val_loss
                     
                     log.info(f'Validation loss: {val_loss}' + score_str)
-                    logger.iter(i=i, val_loss=val_loss, extra_loss=float(extra_loss), **val_scores)
+                    logger.iter_val(i=i, val_loss=val_loss, extra_loss=float(extra_loss), **val_scores)
                     model.train()
 
             print('epoch complete')
@@ -297,7 +296,7 @@ def main(config):
 def argument_parser():
   parser = argparse.ArgumentParser()
 
-  parser.add_argument("--name",default="pc",type=str,help="Name")
+  parser.add_argument("--name",default="pc_new",type=str,help="Name")
 
   parser.add_argument("--batch-size",default=64,type=int,help="Batch Size for Training",dest="batch_size")
   parser.add_argument("--max-iterations",default=20000,type=int,help="Max Iterations",dest="max_iterations")
@@ -311,7 +310,7 @@ def argument_parser():
   parser.add_argument("--num_workers",default=4,type=int,help="Number of workers in DataLoader")
   parser.add_argument("--reduce-dim",default=64,type=int,help="Internal embedding size",dest="reduce_dim")
 
-  parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,help="initial learning rate",dest="lr")
+  parser.add_argument("-lr", "--learning-rate", default=0.002, type=float,help="initial learning rate",dest="lr")
 
   parser.add_argument("--model",default="models.clipseg.ClipPred",type=str,help="Model")
   parser.add_argument("--mask",default="text",type=str,help="mask")
@@ -324,18 +323,7 @@ def argument_parser():
   parser.add_argument("--use-val-metric",default=None,type=bool,help="Use Validation Metric",dest="use_val_metric")
   parser.add_argument("--val-metric-class",default=None,type=str,help="Validation Metric",dest="val_metric_class")
 
-  parser.add_argument("--momentum", default=0.9, type=float, metavar="M", help="momentum")
-  parser.add_argument(
-      "--wd",
-      "--weight-decay",
-      default=1e-4,
-      type=float,
-      metavar="W",
-      help="weight decay (default: 1e-4)",
-      dest="weight_decay",
-  )
-
-
+  parser.add_argument("--wd","--weight-decay",default=1e-4,type=float,metavar="W",help="weight decay (default: 1e-4)",dest="weight_decay")
 
   return parser.parse_args()
 
