@@ -173,7 +173,7 @@ class ClipPred(ClipBase):
     if not complex_conv:
       self.trans_conv = nn.ConvTranspose2d(reduce_dim, 1, trans_conv_ks, stride=trans_conv_ks)
     else:
-      tp_kernels = (trans_conv_ks[0] // 8, trans_conv_ks[0] // 4)
+      tp_kernels = (trans_conv_ks[0] // 4, trans_conv_ks[0] // 8)
 
       self.trans_conv = nn.Sequential(
           nn.Conv2d(reduce_dim, reduce_dim, kernel_size=3, padding=1),
@@ -209,9 +209,9 @@ class ClipPred(ClipBase):
     a = a[1:].permute(1, 2, 0) # rm cls token and -> BS, Feats, Tokens
     size = int(math.sqrt(a.shape[2]))
     a = a.view(a.shape[0], a.shape[1], size, size)
-    print("shape before",a.shape)
+    #print("shape before",a.shape)
     a = self.trans_conv(a)
-    print("shape of tensor",a.shape)
+    #print("shape of tensor",a.shape)
     #if self.upsample_proj is not None:
     #  a = self.upsample_proj(a)
     #  a = nnf.interpolate(a, inp_image.shape[2:], mode='bilinear')
