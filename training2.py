@@ -32,8 +32,8 @@ def cosine_warmup_lr(i, warmup=10, max_iter=90):
         return 0.5 + 0.5*math.cos(math.pi*(((i-warmup)/(max_iter- warmup))))
 
 def validate(model, dataset, config,device):
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=False)
-
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False)
+    max_val_iter = len(data_loader)
     metric_class, use_metric = config.val_metric_class, config.use_val_metric
     #loss_fn = get_attribute(config.loss)
     #loss_fn = F.binary_cross_entropy_with_logits
@@ -65,6 +65,8 @@ def validate(model, dataset, config,device):
             losses += [float(loss)]
 
             i += 1
+            if i%50==0:
+              print(f'Validation iter = {i}/{max_val_iter}')
 
             #if config.val_max_iterations is not None and i > config.val_max_iterations:
                 #break
@@ -227,6 +229,7 @@ def main(config):
                     if torch.isnan(loss) or torch.isinf(loss):
                         # skip if loss is nan
                         log.warning('Training stopped due to inf/nan loss.')
+                        print(loss)
                         sys.exit(-1)
 
                     extra_loss = 0
@@ -262,8 +265,8 @@ def main(config):
                 if checkpoint_iterations is not None and i in checkpoint_iterations:
                   logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
 
-                
-                if val_interval is not None and i % val_interval == val_interval - 1:
+                #print("Validation Interval ==", val_interval)
+                if val_interval is not None and (i % val_interval) == 1:
 
                     val_loss, val_scores, maximize = validate(model, dataset_val, config, device)
                     
@@ -310,7 +313,7 @@ def argument_parser():
   parser.add_argument("--num_workers",default=4,type=int,help="Number of workers in DataLoader")
   parser.add_argument("--reduce-dim",default=64,type=int,help="Internal embedding size",dest="reduce_dim")
 
-  parser.add_argument("-lr", "--learning-rate", default=0.002, type=float,help="initial learning rate",dest="lr")
+  parser.add_argument("-lr", "--learning-rate", default=0.001, type=float,help="initial learning rate",dest="lr")
 
   parser.add_argument("--model",default="models.clipseg.ClipPred",type=str,help="Model")
   parser.add_argument("--mask",default="text",type=str,help="mask")
