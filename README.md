@@ -35,7 +35,7 @@ To then check for mIOU, mAP metrics using your trained model, you can run the fo
 python score.py pc
 ```
 
-Be sure to use the same experiment name in the command above as you did while training, to make sure the ```score.py``` script loads the correct model for inference.
+Be sure to use the same experiment name in the command above as you did while training, to make sure the ```score.py``` script loads the correct model to generate metrics.
 
 For a quick failure case analysis with the [HuggingFace Model](https://huggingface.co/CIDAS/clipseg-rd64-refined) run the following command:
 
