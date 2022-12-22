@@ -35,7 +35,7 @@ python score.py pc
 
 Be sure to use the same experiment name in the command above as you did while training, to make sure the ```score.py``` script loads the correct model for inference.
 
-For a quick failure case analysis on the HuggingFace model from [here](https://huggingface.co/CIDAS/clipseg-rd64-refined) run the following command
+For a quick failure case analysis on the HuggingFace model from [here](https://huggingface.co/CIDAS/clipseg-rd64-refined) run the following command:
 
 ```
 python failure_test.py
