@@ -7,7 +7,7 @@ The dataset we used can be found at [Visual Genome](https://visualgenome.org/api
 To train this model, run the following command
 
 ```
-python train.py --name=pc --batch-size=64 --max-iterations=2000 --learning-rate=0.001 --wd=1e-4
+python train.py --name=pc --batch-size=64 --max-iterations=20000 --learning-rate=0.001 --wd=1e-4
 ```
 
 These are the most important arguments with ```train.py```
