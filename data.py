@@ -26,7 +26,7 @@ class PhraseCut(object):
         #]))
 
         self.base_path = join(expanduser('~/datasets/PhraseCut/VGPhraseCut_v0/images/'))
-        self.base_path = "VGPhraseCut_v0/images/"
+        self.base_path = "/mnt/disks/data/CS771-Project_1/PhraseCutDataset/data/VGPhraseCut_v0/images/"
 
         # The following import is from https://github.com/ChenyunWu/PhraseCutDataset.git
         # The repository provides API's to work with the PhraseCut dataset

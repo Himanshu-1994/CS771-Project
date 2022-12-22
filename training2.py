@@ -32,8 +32,8 @@ def cosine_warmup_lr(i, warmup=10, max_iter=90):
         return 0.5 + 0.5*math.cos(math.pi*(((i-warmup)/(max_iter- warmup))))
 
 def validate(model, dataset, config,device):
-    data_loader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=False)
-
+    data_loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False)
+    max_val_iter = len(data_loader)
     metric_class, use_metric = config.val_metric_class, config.use_val_metric
     #loss_fn = get_attribute(config.loss)
     #loss_fn = F.binary_cross_entropy_with_logits
@@ -65,6 +65,8 @@ def validate(model, dataset, config,device):
             losses += [float(loss)]
 
             i += 1
+            if i%50==0:
+              print(f'Validation iter = {i}/{max_val_iter}')
 
             #if config.val_max_iterations is not None and i > config.val_max_iterations:
                 #break
@@ -141,7 +143,7 @@ def main(config):
     train_len = len(data_loader)
     val_interval = train_len
     
-    checkpoint_iterations = [(i+1)*1000 for i in range(20)]
+    checkpoint_iterations = [5000,10000,15000,20000]
 
     #val_interval = None
     if val_interval is not None:
@@ -227,6 +229,7 @@ def main(config):
                     if torch.isnan(loss) or torch.isinf(loss):
                         # skip if loss is nan
                         log.warning('Training stopped due to inf/nan loss.')
+                        print(loss)
                         sys.exit(-1)
 
                     extra_loss = 0
@@ -253,19 +256,17 @@ def main(config):
 
                 if i >= max_iterations:
 
-                    if not isfile(join(logger.base_path, 'weights.pth')):
+                    if not isfile(join(logger.base_path, 'weights_final.pth')):
                         # only write if no weights were already written
                         logger.save_weights(only_trainable=save_only_trainable)
                     
                     sys.exit(0)
 
-                #checkpoint_iterations = [i+1 for i in range(20)]*1000
                 if checkpoint_iterations is not None and i in checkpoint_iterations:
-                #if config.checkpoint_iterations is not None and i in config.checkpoint_iterations:
-                    logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
+                  logger.save_weights(only_trainable=save_only_trainable, weight_file=f'weights_{i}.pth')
 
-                
-                if val_interval is not None and i % val_interval == val_interval - 1:
+                #print("Validation Interval ==", val_interval)
+                if val_interval is not None and (i % val_interval) == 1:
 
                     val_loss, val_scores, maximize = validate(model, dataset_val, config, device)
                     
@@ -284,12 +285,13 @@ def main(config):
                     else:
                         score_str = ''
                         # if no score is used, fall back to loss
+                        #logger.save_weights(only_trainable=save_only_trainable,weight_file=f'weights_{i}.pth')
                         if val_loss < best_val_loss:
-                            logger.save_weights(only_trainable=save_only_trainable)
+                            logger.save_weights(only_trainable=save_only_trainable,weight_file=f'weights_{i}.pth')
                             best_val_loss = val_loss
                     
                     log.info(f'Validation loss: {val_loss}' + score_str)
-                    logger.iter(i=i, val_loss=val_loss, extra_loss=float(extra_loss), **val_scores)
+                    logger.iter_val(i=i, val_loss=val_loss, extra_loss=float(extra_loss), **val_scores)
                     model.train()
 
             print('epoch complete')
@@ -297,7 +299,7 @@ def main(config):
 def argument_parser():
   parser = argparse.ArgumentParser()
 
-  parser.add_argument("--name",default="pc",type=str,help="Name")
+  parser.add_argument("--name",default="pc_new",type=str,help="Name")
 
   parser.add_argument("--batch-size",default=64,type=int,help="Batch Size for Training",dest="batch_size")
   parser.add_argument("--max-iterations",default=20000,type=int,help="Max Iterations",dest="max_iterations")
@@ -324,18 +326,7 @@ def argument_parser():
   parser.add_argument("--use-val-metric",default=None,type=bool,help="Use Validation Metric",dest="use_val_metric")
   parser.add_argument("--val-metric-class",default=None,type=str,help="Validation Metric",dest="val_metric_class")
 
-  parser.add_argument("--momentum", default=0.9, type=float, metavar="M", help="momentum")
-  parser.add_argument(
-      "--wd",
-      "--weight-decay",
-      default=1e-4,
-      type=float,
-      metavar="W",
-      help="weight decay (default: 1e-4)",
-      dest="weight_decay",
-  )
-
-
+  parser.add_argument("--wd","--weight-decay",default=1e-4,type=float,metavar="W",help="weight decay (default: 1e-4)",dest="weight_decay")
 
   return parser.parse_args()
 
