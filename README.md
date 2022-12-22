@@ -41,7 +41,7 @@ For a quick failure case analysis on the HuggingFace model from [here](https://h
 python failure_test.py
 ```
 
-This will create a folder called ```failure_cases``` and save all inferences (from the test set) with mIOU less than 0.5 for 5 different thresholds (0.1, 0.2, 0.3, 0.4, 0.5)
+This will create a folder called ```failure_cases``` and save all inferences (from the test set) with mIOU less than 0.5 for all of 5 different thresholds (0.1, 0.2, 0.3, 0.4, 0.5)
 
 
 
