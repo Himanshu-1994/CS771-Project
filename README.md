@@ -45,6 +45,6 @@ python failure_test.py
 
 This will create a folder called ```failure_cases``` and save all inferences (from the test set) with mIOU less than 0.5 for all of 5 different thresholds (0.1, 0.2, 0.3, 0.4, 0.5)
 
-
+You can also find the final class presentation of our project [here](https://docs.google.com/presentation/d/1lqJFvMjR1lVsl52VeTN7T3N8RIWSuG7FdALDSRB7r4k/edit?pli=1#slide=id.g1b2407d75c2_15_42)
 
 
