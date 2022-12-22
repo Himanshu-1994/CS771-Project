@@ -2,6 +2,10 @@
 
 This repo is an implementation of [this](https://arxiv.org/pdf/2112.10003.pdf) paper by Lüddecke et al which proposes a novel architecture built upon CLIP to segment images based on user prompts. Currently, this repo supports only text prompts.
 
+The data set we used can be found at [Visual Genome](https://visualgenome.org/api/v0/api_home.html).
+
+[ChenyunWu/PhraseCutDataset](https://github.com/ChenyunWu/PhraseCutDataset) needs to be cloned inside our repository, before trainign can begin. This repository helps us navigate through the dataset.
+
 To train this model, run the following command
 
 ```
